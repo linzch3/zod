@@ -252,7 +252,7 @@ export const $ZodType: core.$constructor<$ZodType> = /*@__PURE__*/ core.$constru
           const _ = ch._zod.check(payload as any) as any as ParsePayload;
 
           if (_ instanceof Promise && ctx?.async === false) {
-            throw new core.$ZodAsyncError();
+            throw new core.$ZodAsyncError(_);
           }
           if (asyncResult || _ instanceof Promise) {
             asyncResult = (asyncResult ?? Promise.resolve()).then(async () => {
@@ -285,7 +285,7 @@ export const $ZodType: core.$constructor<$ZodType> = /*@__PURE__*/ core.$constru
         // run checks first, then
         const checkResult = runChecks(payload, checks, ctx);
         if (checkResult instanceof Promise) {
-          if (ctx.async === false) throw new core.$ZodAsyncError();
+          if (ctx.async === false) throw new core.$ZodAsyncError(checkResult);
           return checkResult.then((checkResult) => inst._zod.parse(checkResult, ctx));
         }
         return inst._zod.parse(checkResult, ctx);
@@ -300,6 +300,7 @@ export const $ZodType: core.$constructor<$ZodType> = /*@__PURE__*/ core.$constru
           const canary = inst._zod.parse({ value: payload.value, issues: [] }, { ...ctx, skipChecks: true });
 
           if (canary instanceof Promise) {
+            if (ctx.async === false) throw new core.$ZodAsyncError(canary);
             return canary.then((canary) => {
               return handleCanaryResult(canary, payload, ctx);
             });
@@ -311,7 +312,7 @@ export const $ZodType: core.$constructor<$ZodType> = /*@__PURE__*/ core.$constru
         // forward
         const result = inst._zod.parse(payload, ctx);
         if (result instanceof Promise) {
-          if (ctx.async === false) throw new core.$ZodAsyncError();
+          if (ctx.async === false) throw new core.$ZodAsyncError(result);
           return result.then((result) => runChecks(result, checks, ctx));
         }
 
@@ -3932,7 +3933,7 @@ export const $ZodTransform: core.$constructor<$ZodTransform> = /*@__PURE__*/ cor
       }
 
       if (_out instanceof Promise) {
-        throw new core.$ZodAsyncError();
+        throw new core.$ZodAsyncError(_out);
       }
 
       payload.value = _out;

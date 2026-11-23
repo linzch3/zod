@@ -24,7 +24,7 @@ export const _parse: (_Err: $ZodErrorClass) => $Parse = (_Err) => {
     const ctx: schemas.ParseContextInternal = _ctx ? { ..._ctx, async: false } : { async: false };
     const result = schema._zod.run({ value, issues: [] }, ctx);
     if (result instanceof Promise) {
-      throw new core.$ZodAsyncError();
+      throw new core.$ZodAsyncError(result);
     }
     if (result.issues.length) {
       const e = new (_params?.Err ?? _Err)(result.issues.map((iss) => util.finalizeIssue(iss, ctx, core.config())));
@@ -72,7 +72,7 @@ export const _safeParse: (_Err: $ZodErrorClass) => $SafeParse = (_Err) => (schem
   const ctx: schemas.ParseContextInternal = _ctx ? { ..._ctx, async: false } : { async: false };
   const result = schema._zod.run({ value, issues: [] }, ctx);
   if (result instanceof Promise) {
-    throw new core.$ZodAsyncError();
+    throw new core.$ZodAsyncError(result);
   }
 
   return result.issues.length ? failure(_Err, result.issues, ctx) : ({ success: true, data: result.value } as any);
@@ -166,7 +166,7 @@ function validateFallback(
     result = schema._zod.run({ value, issues: [] }, ctx);
   }
   if (result instanceof Promise) {
-    throw new core.$ZodAsyncError();
+    throw new core.$ZodAsyncError(result);
   }
   return (result as schemas.ParsePayload).issues.length === 0;
 }

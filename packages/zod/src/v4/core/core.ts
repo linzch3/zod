@@ -164,8 +164,9 @@ export type $ZodBranded<
 export type $ZodNarrow<T extends schemas.SomeType, Out> = T & { _zod: { output: Out } };
 
 export class $ZodAsyncError extends Error {
-  constructor() {
+  constructor(promise?: Promise<unknown>) {
     super(`Encountered Promise during synchronous parse. Use .parseAsync() instead.`);
+    promise?.catch(() => {});
   }
 }
 

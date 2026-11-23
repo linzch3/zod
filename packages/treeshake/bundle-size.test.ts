@@ -43,7 +43,8 @@ const CEILINGS: Record<string, number> = {
   // Also carries the lazy `safeParse` error: a getter and a setter on the failing result, and the async wrapper that keeps a sync throw a rejection. Measured 3021 / 3497 / 4581 locally plus 18 headroom.
   // Also carries the symbol-key loop in `util.members`, which is what installs `$ZodProperties`'s `Symbol.iterator` on its prototype, and the memoizer's shared reference predicate. Measured 3036 / 3516 / 4611 locally plus 18 headroom.
   // Lowered by the measured −17 / −16 / −16 from making z.properties() a check again: the symbol-key loop in `util.members` and the memoizer's callable arm left with the schema role. Measured 3044 / 3418 / 4629 locally plus 18 headroom; the object ceiling had been overtaken to zero headroom on main, so its number moves up by two while the bundle moves down.
-  "zod-mini-boolean": 3062,
+  // Also carries promise rejection suppression in `$ZodAsyncError` so sync parses never leak unhandled rejections. Measured 3085 / 3472 / 4684 locally plus 18 headroom.
+  "zod-mini-boolean": 3103,
   // Also carries the code-point string length scan: `.min`/`.max`/`.length` on a string pulls in the surrogate walk.
   // Also carries the Standard Schema issue bag: a failing `~standard.validate` parses with a plain issue holder instead of constructing a ZodError. Measured 2974 / 3455 / 4540 locally plus 28 headroom.
   // Also carries the lazy `safeParse` error: a getter and a setter on the failing result, and the async wrapper that keeps a sync throw a rejection. Measured 3021 / 3497 / 4581 locally plus 18 headroom.
@@ -52,7 +53,8 @@ const CEILINGS: Record<string, number> = {
   // Lowered by the measured −17 / −16 / −16 from making z.properties() a check again: the symbol-key loop in `util.members` and the memoizer's callable arm left with the schema role. Measured 3044 / 3418 / 4629 locally plus 18 headroom; the object ceiling had been overtaken to zero headroom on main, so its number moves up by two while the bundle moves down.
 
   // factory check snapshots on the check-only properties base measure 3438 gzip bytes plus 28 headroom
-  "zod-mini-string": 3466,
+  // Also carries promise rejection suppression in `$ZodAsyncError` (3472 locally plus 18 headroom).
+  "zod-mini-string": 3490,
   // Also carries the construction-time discriminator check, which writes a WeakMap entry from `$ZodObject`, so every bundle containing `z.object` pays for it whether or not it builds a discriminated union.
   // Also carries the declared symbol keys from #6448: `normalizeDef` collects the shape's own symbols and the parse loop walks them. Almost none of that is the `Reflect.ownKeys` conversions — reverting all eight of them measures a byte larger.
   // Also carries the memoizer seam from #6482: each container init reads `globalConfig.memoizer` and calls `attach`, which is what lets `zod/mini` opt into cycle support. Measured 4512 locally but 4533 on CI — the gzip stream differs across zlib builds — so the headroom rides on the CI number.
@@ -63,7 +65,8 @@ const CEILINGS: Record<string, number> = {
   // Lowered by the measured −69 for the same bag strip: the string and number inits no longer carry pattern derivation or attach-time metadata writes.
 
   // factory check snapshots on the check-only properties base measure 4654 gzip bytes plus 28 headroom
-  "zod-mini-object": 4682,
+  // Also carries promise rejection suppression in `$ZodAsyncError` (4684 locally plus 18 headroom).
+  "zod-mini-object": 4702,
 };
 
 /**

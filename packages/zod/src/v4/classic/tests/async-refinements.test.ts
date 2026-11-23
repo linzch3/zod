@@ -66,3 +66,45 @@ test("async refine that uses value", async () => {
   expect(r2.success).toBe(true);
   expect(r2.data).toEqual("asdf123");
 });
+
+test("sync parse does not leave rejecting async promises unhandled when throwing $ZodAsyncError", async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", onUnhandled);
+  try {
+    const rejectingRefine = z.string().refine(async () => {
+      throw new Error("refine boom");
+    });
+    const rejectingSuperRefine = z.string().superRefine(async () => {
+      throw new Error("superRefine boom");
+    });
+    const rejectingTransform = z.string().transform(async () => {
+      throw new Error("transform boom");
+    });
+    const rejectingPipe = z.string().pipe(
+      z.string().refine(async () => {
+        throw new Error("pipe boom");
+      })
+    );
+    const rejectingPromiseFn = z.string().refine((() => Promise.reject(new Error("compiled refine boom"))) as any);
+
+    for (const schema of [
+      rejectingRefine,
+      rejectingSuperRefine,
+      rejectingTransform,
+      rejectingPipe,
+      rejectingPromiseFn,
+    ]) {
+      expect(() => schema.safeParse("x")).toThrow(z.core.$ZodAsyncError);
+      expect(() => schema.parse("x")).toThrow(z.core.$ZodAsyncError);
+    }
+
+    // Flush microtasks and macrotasks so Node would emit any unhandledRejection.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(unhandled).toEqual([]);
+  } finally {
+    process.off("unhandledRejection", onUnhandled);
+  }
+});

@@ -326,7 +326,10 @@ function runtimeRun(schema: SomeType, value: unknown): unknown {
     { value, issues: [] },
     {} as ParseContextInternal
   );
-  if (result && typeof (result as Promise<unknown>).then === "function") return INVALID;
+  if (result && typeof (result as Promise<unknown>).then === "function") {
+    (result as Promise<unknown>).then(undefined, () => {});
+    return INVALID;
+  }
   const r = result as { value: unknown; issues: unknown[] };
   return r.issues.length === 0 ? r.value : INVALID;
 }
@@ -691,8 +694,8 @@ type CustomCheck = {
   _zod: { def: { check: "custom"; fn?: (value: unknown) => boolean }; check?: (payload: unknown) => unknown };
 };
 /** A predicate that hands back a thenable is an async check reached synchronously, and the interpreter throws `$ZodAsyncError` for it. Returning INVALID instead would be a bail-out, and a union reads a bail-out as a rejected branch and answers with a later one — so the throw has to survive into generated code. */
-function throwAsync(): never {
-  throw new $ZodAsyncError();
+function throwAsync(promise?: Promise<unknown>): never {
+  throw new $ZodAsyncError(promise);
 }
 
 /** Shared `addIssue` for the spoofed payloads a refine, check or transform receives. Allocating one per call — a fresh closure plus a `this`-bound method on a fresh literal — pinned every payload-allocating schema at ~2.7M ops/sec against 135M for a plain object literal. It captures nothing per call; it only reaches `this.issues`. */
@@ -713,7 +716,7 @@ function generateCustomRefineCheck(doc: Doc, ctx: CompileContext, check: CustomC
     const resVar = newVar(ctx);
     doc.write(`const ${resVar} = ${fnConst}(${accessor});`);
     // A thenable is truthy, so it would otherwise read as a pass. It is not a rejection either: the interpreter throws, and INVALID inside a union would just hand the parse to the next branch.
-    doc.write(`if (${resVar} instanceof Promise) ${throwAsyncConst}();`);
+    doc.write(`if (${resVar} instanceof Promise) ${throwAsyncConst}(${resVar});`);
     doc.write(`if (!${resVar}) return INVALID;`);
     // A `.refine()` predicate only answers yes or no; it cannot rewrite the value.
     return accessor;
@@ -732,7 +735,7 @@ function generateCustomRefineCheck(doc: Doc, ctx: CompileContext, check: CustomC
       const fakePayload = { value, issues: [] as unknown[], addIssue: pushIssue };
       const result = checkFn(fakePayload);
       // Throw rather than return INVALID: the interpreter throws here, and a union would read INVALID as a rejected branch.
-      if (result instanceof Promise) throwAsync();
+      if (result instanceof Promise) throwAsync(result);
       return fakePayload.issues.length === 0 ? fakePayload.value : INVALID;
     };
     const helperConst = addUserConstant(ctx, helperFn);
@@ -2257,7 +2260,10 @@ function generatePipeCheck(doc: Doc, ctx: CompileContext, schema: SomeType, acce
       const fakePayload = { value, issues: [] as unknown[], addIssue: pushIssue };
       // A throw is deliberately not caught. The interpreter lets one propagate out of the whole parse; swallowing it into INVALID turned a thrown error into a merely-rejected union branch, so a later branch answered instead.
       const result = transformFn(value, fakePayload as any);
-      if (result instanceof Promise) return INVALID;
+      if (result instanceof Promise) {
+        result.catch(() => {});
+        return INVALID;
+      }
       return fakePayload.issues.length === 0 ? result : INVALID;
     };
     const helperConst = addUserConstant(ctx, helperFn);
@@ -2292,7 +2298,7 @@ function generateCustomCheck(doc: Doc, ctx: CompileContext, schema: SomeType, ac
     const throwAsyncConst = addConstant(ctx, throwAsync);
     const resVar = newVar(ctx);
     doc.write(`const ${resVar} = ${fnConst}(${accessor});`);
-    doc.write(`if (${resVar} instanceof Promise) ${throwAsyncConst}();`);
+    doc.write(`if (${resVar} instanceof Promise) ${throwAsyncConst}(${resVar});`);
     doc.write(`if (!${resVar}) return INVALID;`);
   } else {
     throw new ZodCompileUnsupportedError("custom schema without a predicate function");
@@ -2306,7 +2312,10 @@ function runtimeCatch(innerSchema: SomeType, catchValue: () => unknown, value: u
     { value, issues: [] },
     {} as ParseContextInternal
   );
-  if (result && typeof (result as Promise<unknown>).then === "function") return INVALID;
+  if (result && typeof (result as Promise<unknown>).then === "function") {
+    (result as Promise<unknown>).then(undefined, () => {});
+    return INVALID;
+  }
   const r = result as { value: unknown; issues: any[] };
   if (r.issues.length === 0) return r.value;
   // Only reached for a catch value that ignores the parse context — codegen refuses the rest — so there are no issues to finalize and nothing here needs the caller's error map.
@@ -2364,7 +2373,10 @@ function generateTransformCheck(doc: Doc, ctx: CompileContext, schema: SomeType,
       const fakePayload = { value, issues: [] as unknown[], addIssue: pushIssue };
       // As in the pipe helper: a throw propagates, because the interpreter lets it out of the whole parse rather than treating it as a failed branch.
       const result = transformFn(value, fakePayload);
-      if (result instanceof Promise) return INVALID;
+      if (result instanceof Promise) {
+        result.catch(() => {});
+        return INVALID;
+      }
       return fakePayload.issues.length === 0 ? result : INVALID;
     };
     const helperConst = addUserConstant(ctx, helperFn);
